@@ -1,13 +1,16 @@
 const express = require('express');
 const app = express();
+const fs = require('fs');
 
 var server = require('http').Server(app);
 var io = require('socket.io')(server);
 var bodyParser = require('body-parser');
 var isConnected = false;
-var redis = require("redis");
+var Db = require('tingodb')().Db;
 
-var redisClient = redis.createClient();
+var db = new Db('./', {});
+var toolCollection = db.collection("tools");
+
 
 app.use(bodyParser.json());
 app.use('/socket.io', express.static(__dirname + '/node_modules/socket.io-client/dist/'));
@@ -25,11 +28,11 @@ app.get('/edit_add_tool', function (req, res) {
 app.post('/rfid-scan', function (req, res) {
     if (isConnected) {
 
-        redisClient.get(req.body.rfid,function(err,reply) {
+        toolCollection.findOne({'rfid': req.body.rfid}, function (err, tool) {
+            var toolName = tool == null ? null : tool.name;
 
-            var tool = reply == null ? null : JSON.parse(reply).tool;
+            io.emit('rfid-sent', {'rfid': req.body.rfid, tool: toolName});
 
-            io.emit('rfid-sent', {'rfid': req.body.rfid, tool: tool});
         });
 
         res.send('sent');
@@ -40,13 +43,66 @@ app.post('/rfid-scan', function (req, res) {
     res.send('not-sent');
 });
 
+app.put('/tool-checkout', function (req, res) {
+
+    toolCollection.findOne({rfid: req.body.rfid}, function (err, tool) {
+
+        var message = 'Tool Not Found.';
+
+        if (typeof tool !== 'undefined') {
+            tool.checked = !tool.checked;
+            toolCollection.update({rfid: tool.rfid}, { $set: tool }, function (err, item) {
+                console.log(err, 'UPDATE ERROR');
+            });
+            if (isConnected) {
+                io.emit('refresh_tools', {});
+            }
+            message = tool.checked ?
+                "You are checking out the " + tool.name + "." : "Thank you for returning the " + tool.name + ".";
+        }
+
+        console.log(message);
+
+        res.send(message);
+
+    });
+
+});
+
 app.post('/rfid-tool', function (req, res) {
     console.log(req.body);
-    redisClient.set(req.body.rfid, JSON.stringify({'tool': req.body.tool, 'checked': false}));
+    toolCollection.findOne({rfid: req.body.rfid}, function (err, tool) {
+
+        if (typeof tool !== 'undefined') {
+            tool.name = req.body.tool;
+            toolCollection.update({rfid: tool.rfid}, { $set: tool }, function (err, item) {
+                console.log(err, 'UPDATE ERROR');
+            });
+            return;
+        }
+
+        tool = {};
+        tool.name = req.body.tool;
+        tool.rfid = req.body.rfid;
+        tool.checked = false;
+
+        toolCollection.insert(tool);
+        if (isConnected) {
+            io.emit('refresh_tools', {});
+        }
+    });
 
     res.send('ok');
 });
 
+app.get('/tool-list', function (req, res) {
+
+    toolCollection.find().toArray(function (err, tools) {
+        res.json(tools);
+    });
+
+
+});
 
 app.listen(3000, function () {
     console.log('Example app listening on port 3000!')
@@ -57,10 +113,3 @@ io.on('connection', function (socket) {
     isConnected = true;
 });
 
-redisClient.on("error", function (err) {
-    console.log("Error " + err);
-});
-
-redisClient.on('ready',function() {
-    console.log("Redis is ready");
-});

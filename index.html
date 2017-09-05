@@ -1,36 +1,76 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Node / ESP-8266 IOT Tool Tacker</title>
-    <script
-            src="https://code.jquery.com/jquery-3.2.1.min.js"
-            integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
-            crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css" />
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
-    <style type="text/css">
-        p {
-            margin: 0 0 10px;
-            font-size: 20px;
-            padding: 10px;
-        }
-        #btn-container {
-            margin-bottom: 20px;
-            height: 30px;
-        }
-    </style>
-
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Add Tool</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
 </head>
 <body>
-<div style="margin:100px; margin-top:10px;">
-    <nav class="navbar navbar-inverse navbar-static-top">
-        <div class="container">
-            <a class="navbar-brand" href="/">Node / ESP-8266 IOT Tool Tacker.</a>
-        </div>
-    </nav>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">ESP 8266 IOT Node Tool Tracker</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
 
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item">
+                <a class="nav-link active" href="/">Tool List <span class="sr-only">(current)</span></a>
+            </li>
+            <li class="nav-item ">
+                <a class="nav-link" href="/edit_add_tool">Add Tool</a>
+            </li>
 
+        </ul>
+    </div>
+</nav>
 
+<div class="container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Tool Name</th>
+                <th>Checked Out</th>
+            </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+    </table>
 </div>
+
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    getTableBody();
+    var socket = io('http://192.168.1.104:1243');
+
+    socket.on('connect', function(){
+        console.log('Socket Connected');
+    });
+
+    socket.on('refresh_tools', function () {
+        getTableBody();
+    });
+
+    function getTableBody() {
+        $.getJSON('/tool-list', function (toolList) {
+            var tbody = '';
+            for (var i in toolList) {
+                tbody += '<tr><td>' + toolList[i].name + '</td><td>'+ toolList[i].checked + '</td></tr>'
+            }
+            $("tbody").empty().html(tbody);
+        });
+    }
+
+
+</script>
 </body>
 </html>

@@ -25,10 +25,15 @@ const char *pass =  "hackon!!"; // change according to your Network
 
 MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance
 
+const String CHECKOUT_MODE = "CHECKOUT";
+const String EDIT_ADD_MODE = "ADD_EDIT";
+
+String modeType = CHECKOUT_MODE;
+
 void setup() {
+  pinMode(D3,INPUT);
   Serial.begin(9600);    // Initialize serial communications
   delay(250);
-  Serial.println(F("Booting...."));
   // The begin call takes the width and height. This
   // Should match the number provided to the constructor.
   SPI.begin();           // Init SPI bus
@@ -36,28 +41,23 @@ void setup() {
 
   WiFi.begin(ssid, pass);
   while (WiFi.status() != WL_CONNECTED) {  //Wait for the WiFI connection completion
-
     delay(500);
-    Serial.println("Waiting for connection");
-
   }
 
   int retries = 0;
   while ((WiFi.status() != WL_CONNECTED) && (retries < 10)) {
     retries++;
     delay(500);
-    Serial.print(".");
   }
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println(F("WiFi connected"));
-  }
-
-  Serial.println(F("Ready!"));
-
-
 }
 
 void loop() {
+
+  String readLine = Serial.readStringUntil('|');
+  if (readLine == CHECKOUT_MODE || readLine == EDIT_ADD_MODE) {
+     modeType = readLine;
+  }
+  
   // Look for new cards
   if ( ! mfrc522.PICC_IsNewCardPresent()) {
     delay(50);
@@ -77,19 +77,43 @@ void loop() {
 
    String rfidUID = readRFIDString(mfrc522.uid.uidByte, mfrc522.uid.size);
    String json = "{\"rfid\":\"" + rfidUID + "\"}";
-   Serial.println(json);
-   HTTPClient http;    //Declare object of class HTTPClient
 
-   http.begin("http://192.168.1.104:3000/rfid-scan");      //Specify request destination
-   http.addHeader("Content-Type", "application/json");  //Specify content-type header
+   if (modeType == CHECKOUT_MODE) {
+       checkoutTool(json);
+   }
 
-   int httpCode = http.POST(json);   //Send the request
+   if (modeType == EDIT_ADD_MODE) {
+      addEditTool(json, rfidUID);
+   }
+ 
+}
+
+void addEditTool(String json, String rfidUID) {
+   HTTPClient http;
+   http.begin("http://192.168.1.104:3000/rfid-scan"); //Specify request destination
+   http.addHeader("Content-Type", "application/json");    //Specify content-type header
+
+   int httpCode = http.sendRequest("POST",json);   //Send the request
    String payload = http.getString();                  //Get the response payload
 
-   Serial.println(httpCode);   //Print HTTP return code
-   Serial.println(payload);    //Print request response payload
+   Serial.println("^RFID was sent " + rfidUID + " .|");    //Print request response payload
 
    http.end();  //Close connection
+   delay(1000);
+}
+
+void checkoutTool(String json) {
+   HTTPClient http;
+   http.begin("http://192.168.1.104:3000/tool-checkout"); //Specify request destination
+   http.addHeader("Content-Type", "application/json");    //Specify content-type header
+
+   int httpCode = http.sendRequest("PUT",json);   //Send the request
+   String payload = http.getString();                  //Get the response payload
+
+   Serial.println("^" + payload + "|");    //Print request response payload
+
+   http.end();  //Close connection
+   delay(1000);
 }
 
 // Helper routine to dump a byte array as hex values to Serial

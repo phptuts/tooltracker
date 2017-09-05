@@ -78,7 +78,7 @@
             contentType:"application/json; charset=utf-8",
             data: JSON.stringify({'rfid': rfid, 'tool': toolName}),
             success: function (data) {
-                console.log(data);
+                alert('You have successfully updated your tool.');
             },
             error: function (e,t,c) {
                 console.log(e,t,c);
